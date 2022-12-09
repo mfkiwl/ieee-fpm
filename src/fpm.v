@@ -151,9 +151,11 @@ module fpm(
       end
 
       ROUND: begin
-        // arrotondo per eccesso al numero pari superiore
-        if (product[23] && product[22]) begin
+        // se cado nel mezzo arrotondo al numero pari piu' vicino
+        // altrimenti arrotondo al numero piu' vicino
+        if (product[22] && (product[23] | product[21:0] != 0)) begin
           z_mant <= product[46:23] + 1; // arrotondo verso infinito
+          // aumento l'esponente se la mantissa arrotondata risulta pari a 10.0
           if (product[46:23] == 24'hffffff) begin
             z_exp <= z_exp + 1;
           end
