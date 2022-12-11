@@ -127,24 +127,24 @@ module fpm(
 
       MULTIPLY: begin
         z_sign <= a_sign ^ b_sign;
-        z_exp <= a_exp + b_exp;
+        z_exp <= a_exp + b_exp + 1;
         product <= a_mant * b_mant;
 
         state <= NORMALIZE;
       end
 
       NORMALIZE: begin
-        // se a_mant * b_mant >= 10.0
-        if (product[47] == 1) begin
+        // rappresento i numeri con esponente minore di -126 in forma de-normalizzata
+        // potrebbe verificarsi underflow che verra' gestito in seguito
+        if (z_exp < -126 && z_exp > -130) begin
           product <= product >> 1;
           z_exp <= z_exp + 1;
-          state <= ROUND;
-        // se a_mant * b_mant < 01.0 (subnormal)
-        end else if (product[46] == 0 && z_exp > -126) begin
+          state <= NORMALIZE;
+        // normalizzo il numero avendo l'accortezza di mantenere l'esponenete maggiore o uguale a -126
+        end else if (product[47] == 0 && z_exp > -126) begin
           product <= product << 1;
           z_exp <= z_exp - 1;
           state <= NORMALIZE;
-        // se a_mant * b_mant = 01.x (gia' in forma normalizzata)
         end else begin
           state <= ROUND;
         end
@@ -153,15 +153,14 @@ module fpm(
       ROUND: begin
         // se cado nel mezzo arrotondo al numero pari piu' vicino
         // altrimenti arrotondo al numero piu' vicino
-        if (product[22] && (product[23] | product[21:0] != 0)) begin
-          z_mant <= product[46:23] + 1; // arrotondo verso infinito
+        if (product[23] && (product[24] | product[22:0] != 0)) begin
+          z_mant <= product[47:24] + 1; // arrotondo verso infinito
           // aumento l'esponente se la mantissa arrotondata risulta pari a 10.0
-          if (product[46:23] == 24'hffffff) begin
+          if (product[47:24] == 24'hffffff) begin
             z_exp <= z_exp + 1;
           end
-        // arrotondo per difetto al numero pari inferiore
         end else begin
-          z_mant <= product[46:23]; // arrotondo verso lo 0
+          z_mant <= product[47:24]; // arrotondo verso lo 0
         end
         state <= PACK;
       end
